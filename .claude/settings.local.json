@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(where python)",
+      "Bash(C:UsersjensenAppDataLocalMicrosoftWindowsAppspython.exe --version)",
+      "Bash(py --version)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
