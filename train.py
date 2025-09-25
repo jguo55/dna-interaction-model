@@ -5,8 +5,12 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score
-import re
-from typing import List, Tuple, Optional
+from typing import List
+import csv
+import h5py
+import os
+import pickle
+import time
 
 class DNAEncoder(nn.Module):
     def __init__(self, max_seq_length: int = 1000, embed_dim: int = 128):
@@ -168,19 +172,21 @@ class DNAMoleculeInteractionModel(nn.Module):
         return prediction.squeeze()
 
 class DNAMoleculeDataset(Dataset):
-    def __init__(self, dna_sequences: List[str], smiles: List[str],
+    def __init__(self, dna_ids: List[str], smiles: List[str],
                  labels: List[int], char_to_idx: dict, dna_encoder: DNAEncoder):
-        self.dna_sequences = dna_sequences
+        self.dna_ids = dna_ids
         self.smiles = smiles
         self.labels = labels
         self.char_to_idx = char_to_idx
         self.dna_encoder = dna_encoder
-
+        
     def __len__(self):
-        return len(self.dna_sequences)
+        return len(self.dna_ids)
 
     def __getitem__(self, idx):
-        dna_encoded = self.dna_encoder.encode_sequence(self.dna_sequences[idx])
+        with h5py.File('claude-test/data/genes.hdf5', 'r') as f:
+            dna_sequence = f[self.dna_ids[idx]][()]
+        dna_encoded = self.dna_encoder.encode_sequence(dna_sequence)
         mol_encoded = torch.tensor([self.char_to_idx.get(char, self.char_to_idx['<UNK>'])
                                    for char in self.smiles[idx][:200]], dtype=torch.long)
 
@@ -208,7 +214,8 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
         train_preds = []
         train_labels = []
 
-        for dna_batch, mol_batch, labels in train_loader:
+        batch_time = time.time()
+        for batch_idx, (dna_batch, mol_batch, labels) in enumerate(train_loader):
             dna_batch, mol_batch, labels = dna_batch.to(device), mol_batch.to(device), labels.to(device)
 
             optimizer.zero_grad()
@@ -220,6 +227,10 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
             train_loss += loss.item()
             train_preds.extend(predictions.cpu().detach().numpy())
             train_labels.extend(labels.cpu().detach().numpy())
+
+            if batch_idx % 1000 == 0:
+                print(f"Epoch [{epoch+1}/{num_epochs}], Step [{batch_idx}/{len(train_loader)}], batch_time = {time.time()-batch_time}")
+                batch_time = time.time() #reset time
 
         # Validation
         model.eval()
@@ -248,49 +259,58 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
             best_val_auc = val_auc
             torch.save(model.state_dict(), 'best_dna_molecule_model.pt')
 
-        if epoch % 10 == 0:
-            print(f'Epoch {epoch}: Train Loss={train_loss/len(train_loader):.4f}, '
-                  f'Train AUC={train_auc:.4f}, Val AUC={val_auc:.4f}')
+        print(f'Epoch {epoch}: Train Loss={train_loss/len(train_loader):.4f}, '
+            f'Train AUC={train_auc:.4f}, Val AUC={val_auc:.4f}')
 
     return model
 
-def generate_sample_data(n_samples: int = 1000) -> Tuple[List[str], List[str], List[int]]:
-    """Generate sample data for testing"""
-    import random
-
-    # Generate random DNA sequences
-    nucleotides = ['A', 'T', 'G', 'C']
-    dna_sequences = []
-    for _ in range(n_samples):
-        length = random.randint(50, 500)
-        seq = ''.join(random.choices(nucleotides, k=length))
-        dna_sequences.append(seq)
-
-    # Generate sample SMILES strings (simplified)
-    smiles_chars = ['C', 'N', 'O', 'S', 'P', '(', ')', '[', ']', '=', '#', '-', '+']
+def get_data(filepath='claude-test/data/'): #might have to find a way to consistently have a set of negative data. maybe just make 10 more csvs
+    dna_ids = []
     smiles_list = []
-    for _ in range(n_samples):
-        length = random.randint(10, 100)
-        smiles = ''.join(random.choices(smiles_chars + ['C'] * 5, k=length))  # More carbons
-        smiles_list.append(smiles)
+    labels = []
 
-    # Generate random labels (0 or 1)
-    labels = [random.randint(0, 1) for _ in range(n_samples)]
-
-    return dna_sequences, smiles_list, labels
+    with h5py.File('claude-test/data/genes.hdf5', 'r') as f:
+        keyset = set(f.keys())
+        for i in range(1, 11):
+            with open(filepath + f"ixns_file_{i}_of_10_with_SMILES.csv", 'r') as c:
+                reader = csv.DictReader(c)
+                for row in reader:
+                    GeneID = str(int(float(row['GeneID'])))
+                    if GeneID in keyset:
+                        dna_ids.append(GeneID)
+                        smiles_list.append(row['SMILES'])
+                        labels.append(1)
+            print(f"Loaded {len(dna_ids)} positive samples")
+    return dna_ids, smiles_list, labels
 
 if __name__ == "__main__":
     print("DNA-Small Molecule Interaction Prediction Model")
     print("=" * 50)
 
-    # Generate sample data
-    print("Generating sample data...")
-    dna_seqs, smiles, labels = generate_sample_data(1000)
+    print("Getting Data...")
 
     # Create character vocabulary
     mol_encoder = MoleculeEncoder()
-    char_to_idx = mol_encoder.create_char_vocab(smiles)
+    if not os.path.exists("claude-test/smiles_vocab.pkl"):
+        print("smiles vocab not found. creating vocab...")
+        smiles_set = set()
+        for i in range(1, 11):
+            print(f"Processing file {i}/10")
+            with open(f'claude-test/data/ixns_file_{i}_of_10_with_SMILES.csv', 'r') as c:
+                reader = csv.DictReader(c)
+                for row in reader:
+                    smiles_set.add(row['SMILES'])
+        print(f"found {len(smiles_set)} unique molecules")
+        with open("claude-test/smiles_vocab.pkl", 'wb') as f:
+            pickle.dump(smiles_set, f)
+    else:
+        with open("claude-test/smiles_vocab.pkl", 'rb') as f:
+            smiles_set = pickle.load(f)
+        print(f"loaded {len(smiles_set)} unique molecules")
+        
+    char_to_idx = mol_encoder.create_char_vocab(list(smiles_set))
 
+    dna_seqs, smiles, labels = get_data()
     # Split data
     X_dna_train, X_dna_test, X_mol_train, X_mol_test, y_train, y_test = train_test_split(
         dna_seqs, smiles, labels, test_size=0.2, random_state=42)

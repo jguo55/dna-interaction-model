@@ -4,11 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a minimal Python project with a single `main.py` file. The repository appears to be set up for testing or initial development purposes.
+This project is intended to predict molecule and DNA interactions. It uses the .csv files in the data folder for the interactions, and the sequences for each gene are stored in the genes.hdf5 folder.
 
 ## Development Commands
-
-Since this is a basic Python project without specific build tools or dependencies configured:
 
 - **Run the main script**: `python main.py`
 - **Check Python syntax**: `python -m py_compile main.py`
@@ -17,4 +15,4 @@ Since this is a basic Python project without specific build tools or dependencie
 
 ## Architecture
 
-Currently, the project consists of a single empty Python file (`main.py`) with no defined architecture or dependencies.
+Data is in the data folder. Main.py trains the model. The dna sequences are loaded each time during training due to their large sizes.
