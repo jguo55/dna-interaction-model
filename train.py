@@ -11,6 +11,7 @@ import h5py
 import os
 import pickle
 import time
+import random
 
 class DNAEncoder(nn.Module):
     def __init__(self, max_seq_length: int = 1000, embed_dim: int = 128):
@@ -173,7 +174,7 @@ class DNAMoleculeInteractionModel(nn.Module):
 
 class DNAMoleculeDataset(Dataset):
     def __init__(self, dna_ids: List[str], smiles: List[str],
-                 labels: List[int], char_to_idx: dict, dna_encoder: DNAEncoder):
+                 labels: List[int], char_to_idx: dict, dna_encoder: DNAEncoder, balanced=True):
         self.dna_ids = dna_ids
         self.smiles = smiles
         self.labels = labels
@@ -196,7 +197,7 @@ class DNAMoleculeDataset(Dataset):
             mol_encoded = torch.cat([mol_encoded, padding])
 
         return dna_encoded, mol_encoded, torch.tensor(self.labels[idx], dtype=torch.float)
-
+    
 def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float = 0.001):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
@@ -264,32 +265,31 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
 
     return model
 
-def get_data(filepath='claude-test/data/'): #might have to find a way to consistently have a set of negative data. maybe just make 10 more csvs
-    dna_ids = []
-    smiles_list = []
-    labels = []
+def get_data(filepath="claude-test/data/"):
+    train_dna_ids = []
+    train_smiles_list = []
+    train_labels = []
 
-    with h5py.File('claude-test/data/genes.hdf5', 'r') as f:
-        keyset = set(f.keys())
-        for i in range(1, 11):
-            with open(filepath + f"ixns_file_{i}_of_10_with_SMILES.csv", 'r') as c:
+    for dirpath, _, filenames in os.walk(filepath+"train"):
+        for i, f in enumerate(filenames):
+            with open(dirpath+"/"+f, 'r') as c:
                 reader = csv.DictReader(c)
                 for row in reader:
-                    GeneID = str(int(float(row['GeneID'])))
-                    if GeneID in keyset:
-                        dna_ids.append(GeneID)
-                        smiles_list.append(row['SMILES'])
-                        labels.append(1)
-            print(f"Loaded {len(dna_ids)} positive samples")
-    return dna_ids, smiles_list, labels
+                    train_dna_ids.append(row['GeneID'])
+                    train_smiles_list.append(row['SMILES'])
+                    train_labels.append(int(row['Label']))
+            print(f"Processed {i+1} of {len(filenames)+1} files")
 
+    return train_dna_ids, train_smiles_list, train_labels
+        
 if __name__ == "__main__":
     print("DNA-Small Molecule Interaction Prediction Model")
     print("=" * 50)
+    torch.manual_seed(67)
 
     print("Getting Data...")
 
-    # Create character vocabulary
+    # Create character vocabulary. TODO FIX THIS TO WORK WITH THE GENERATED TRAINING SET
     mol_encoder = MoleculeEncoder()
     if not os.path.exists("claude-test/smiles_vocab.pkl"):
         print("smiles vocab not found. creating vocab...")
@@ -311,29 +311,28 @@ if __name__ == "__main__":
     char_to_idx = mol_encoder.create_char_vocab(list(smiles_set))
 
     dna_seqs, smiles, labels = get_data()
-    # Split data
+    # Split data to val set 
     X_dna_train, X_dna_test, X_mol_train, X_mol_test, y_train, y_test = train_test_split(
-        dna_seqs, smiles, labels, test_size=0.2, random_state=42)
-
-    # Create datasets
+        dna_seqs, smiles, labels, test_size=0.2, random_state=67)
+    
     dna_encoder = DNAEncoder()
     train_dataset = DNAMoleculeDataset(X_dna_train, X_mol_train, y_train, char_to_idx, dna_encoder)
-    test_dataset = DNAMoleculeDataset(X_dna_test, X_mol_test, y_test, char_to_idx, dna_encoder)
+    val_dataset = DNAMoleculeDataset(X_dna_test, X_mol_test, y_test, char_to_idx, dna_encoder)
 
     # Create data loaders
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
     # Initialize model
     model = DNAMoleculeInteractionModel(mol_vocab_size=len(char_to_idx))
 
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     print(f"Training samples: {len(train_dataset)}")
-    print(f"Test samples: {len(test_dataset)}")
+    print(f"Validation samples: {len(val_dataset)}")
 
     # Train model
     print("\nStarting training...")
-    trained_model = train_model(model, train_loader, test_loader, num_epochs=20)
+    trained_model = train_model(model, train_loader, val_loader, num_epochs=20)
 
     # Test model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -342,7 +341,7 @@ if __name__ == "__main__":
     test_labels = []
 
     with torch.no_grad():
-        for dna_batch, mol_batch, labels in test_loader:
+        for dna_batch, mol_batch, labels in val_loader:
             dna_batch, mol_batch = dna_batch.to(device), mol_batch.to(device)
             predictions = trained_model(dna_batch, mol_batch)
             test_preds.extend(predictions.cpu().numpy())
