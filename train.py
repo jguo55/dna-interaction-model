@@ -265,7 +265,7 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
 
     return model
 
-def get_data(filepath="claude-test/data/"):
+def get_data(filepath):
     train_dna_ids = []
     train_smiles_list = []
     train_labels = []
@@ -278,7 +278,7 @@ def get_data(filepath="claude-test/data/"):
                     train_dna_ids.append(row['GeneID'])
                     train_smiles_list.append(row['SMILES'])
                     train_labels.append(int(row['Label']))
-            print(f"Processed {i+1} of {len(filenames)+1} files")
+            print(f"Processed {i+1} of {len(filenames)} files")
 
     return train_dna_ids, train_smiles_list, train_labels
         
@@ -287,30 +287,32 @@ if __name__ == "__main__":
     print("=" * 50)
     torch.manual_seed(67)
 
+    basepath = "claude-test/"
+
     print("Getting Data...")
 
-    # Create character vocabulary. TODO FIX THIS TO WORK WITH THE GENERATED TRAINING SET
+    # Create character vocabulary.
     mol_encoder = MoleculeEncoder()
-    if not os.path.exists("claude-test/smiles_vocab.pkl"):
+    if not os.path.exists(basepath + "smiles_vocab.pkl"):
         print("smiles vocab not found. creating vocab...")
         smiles_set = set()
-        for i in range(1, 11):
-            print(f"Processing file {i}/10")
-            with open(f'claude-test/data/ixns_file_{i}_of_10_with_SMILES.csv', 'r') as c:
+        for i in range(1, 15):
+            print(f"Processing file {i}/14")
+            with open(basepath + f'data/train/train_{i}.csv', 'r') as c:
                 reader = csv.DictReader(c)
                 for row in reader:
                     smiles_set.add(row['SMILES'])
         print(f"found {len(smiles_set)} unique molecules")
-        with open("claude-test/smiles_vocab.pkl", 'wb') as f:
+        with open(basepath + "smiles_vocab.pkl", 'wb') as f:
             pickle.dump(smiles_set, f)
     else:
-        with open("claude-test/smiles_vocab.pkl", 'rb') as f:
+        with open(basepath + "smiles_vocab.pkl", 'rb') as f:
             smiles_set = pickle.load(f)
         print(f"loaded {len(smiles_set)} unique molecules")
         
     char_to_idx = mol_encoder.create_char_vocab(list(smiles_set))
 
-    dna_seqs, smiles, labels = get_data()
+    dna_seqs, smiles, labels = get_data(basepath + "data/")
     # Split data to val set 
     X_dna_train, X_dna_test, X_mol_train, X_mol_test, y_train, y_test = train_test_split(
         dna_seqs, smiles, labels, test_size=0.2, random_state=67)
