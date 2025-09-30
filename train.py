@@ -185,7 +185,7 @@ class DNAMoleculeDataset(Dataset):
         return len(self.dna_ids)
 
     def __getitem__(self, idx):
-        with h5py.File('claude-test/data/genes.hdf5', 'r') as f:
+        with h5py.File('data/genes.hdf5', 'r') as f:
             dna_sequence = f[self.dna_ids[idx]][()]
         dna_encoded = self.dna_encoder.encode_sequence(dna_sequence)
         mol_encoded = torch.tensor([self.char_to_idx.get(char, self.char_to_idx['<UNK>'])
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     print("=" * 50)
     torch.manual_seed(67)
 
-    basepath = "claude-test/"
+    basepath = ""
 
     print("Getting Data...")
 
