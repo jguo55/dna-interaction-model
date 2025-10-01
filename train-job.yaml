@@ -1,0 +1,25 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dna-interaction-model
+spec:
+  containers:
+  - name: trainer
+    image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
+    command: ["python", "train.py"]
+    resources:
+      limits:
+        nvidia.com/gpu: "1"
+        memory: 8G
+        cpu: 4
+      requests:
+        nvidia.com/gpu: "1"
+        memory: 8G
+        cpu: 4
+    volumeMounts:
+    - mountPath: /dna-interaction-model
+    name: model-data
+    volumes:
+      - name: model-data
+        persistentVolumeClaim:
+          claimName: model-data

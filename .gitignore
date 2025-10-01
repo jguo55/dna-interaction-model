@@ -1,3 +1,4 @@
 data/
 smiles_vocab.pkl
 __pycache__/
+raw_data/

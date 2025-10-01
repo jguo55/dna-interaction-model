@@ -322,8 +322,8 @@ if __name__ == "__main__":
     val_dataset = DNAMoleculeDataset(X_dna_test, X_mol_test, y_test, char_to_idx, dna_encoder)
 
     # Create data loaders
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=128, shuffle=False)
 
     # Initialize model
     model = DNAMoleculeInteractionModel(mol_vocab_size=len(char_to_idx))

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-loader
+spec:
+  containers:
+    - name: busybox
+      image: busybox
+      command: [ "sleep", "3600" ]
+      volumeMounts:
+        - mountPath: /data
+          name: jeg076-pvc
+  volumes:
+    - name: jeg076-pvc
+      persistentVolumeClaim:
+        claimName: jeg076-pvc
