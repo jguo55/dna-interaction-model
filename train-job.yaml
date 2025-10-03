@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dna-interaction-model
+  name: jeg076-dnainteraction
 spec:
   containers:
   - name: trainer

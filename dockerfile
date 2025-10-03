@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime
+FROM pytorch/pytorch:2.7.1-cuda11.8-cudnn9-runtime
 
 RUN pip install --no-cache-dir numpy scikit-learn h5py
 

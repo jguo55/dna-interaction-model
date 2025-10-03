@@ -7,11 +7,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score
 from typing import List
 import csv
-import h5py
 import os
 import pickle
 import time
-import random
 
 class DNAEncoder(nn.Module):
     def __init__(self, max_seq_length: int = 1000, embed_dim: int = 128):
@@ -174,19 +172,27 @@ class DNAMoleculeInteractionModel(nn.Module):
 
 class DNAMoleculeDataset(Dataset):
     def __init__(self, dna_ids: List[str], smiles: List[str],
-                 labels: List[int], char_to_idx: dict, dna_encoder: DNAEncoder, balanced=True):
+                 labels: List[int], char_to_idx: dict, dna_encoder: DNAEncoder, gene_seq: dict):
         self.dna_ids = dna_ids
         self.smiles = smiles
         self.labels = labels
         self.char_to_idx = char_to_idx
         self.dna_encoder = dna_encoder
+        self.gene_seq = gene_seq
         
     def __len__(self):
         return len(self.dna_ids)
 
     def __getitem__(self, idx):
-        with h5py.File('data/genes.hdf5', 'r') as f:
-            dna_sequence = f[self.dna_ids[idx]][()]
+        '''
+        if self.preloaded:
+            dna_sequence = self.gene_seq[self.dna_ids[idx]]
+        else:
+            if self.h5 is None:
+                self.h5 = h5py.File('data/genes.hdf5', 'r')
+            dna_sequence = self.h5[self.dna_ids[idx]][()]
+        '''
+        dna_sequence = self.gene_seq[self.dna_ids[idx]]
         dna_encoded = self.dna_encoder.encode_sequence(dna_sequence)
         mol_encoded = torch.tensor([self.char_to_idx.get(char, self.char_to_idx['<UNK>'])
                                    for char in self.smiles[idx][:200]], dtype=torch.long)
@@ -280,7 +286,18 @@ def get_data(filepath):
                     train_labels.append(int(row['Label']))
             print(f"Processed {i+1} of {len(filenames)} files")
 
-    return train_dna_ids, train_smiles_list, train_labels
+    return train_dna_ids, train_smiles_list, train_labels    
+
+def load_gene_sequences(filepath):
+    print("Loading gene sequences into ram...")
+    gene_seq = {}
+    with open(filepath, 'r') as f:
+        print("opened file...")
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader):
+            gene_seq[row["GeneID"]] = row["GeneSequence"]
+    print("loaded sequences")
+    return gene_seq
         
 if __name__ == "__main__":
     print("DNA-Small Molecule Interaction Prediction Model")
@@ -290,6 +307,8 @@ if __name__ == "__main__":
     basepath = ""
 
     print("Getting Data...")
+
+    csv.field_size_limit(2**30)
 
     # Create character vocabulary.
     mol_encoder = MoleculeEncoder()
@@ -317,9 +336,11 @@ if __name__ == "__main__":
     X_dna_train, X_dna_test, X_mol_train, X_mol_test, y_train, y_test = train_test_split(
         dna_seqs, smiles, labels, test_size=0.2, random_state=67)
     
+    gene_seq = load_gene_sequences("../tmp/genes.csv")
+    
     dna_encoder = DNAEncoder()
-    train_dataset = DNAMoleculeDataset(X_dna_train, X_mol_train, y_train, char_to_idx, dna_encoder)
-    val_dataset = DNAMoleculeDataset(X_dna_test, X_mol_test, y_test, char_to_idx, dna_encoder)
+    train_dataset = DNAMoleculeDataset(X_dna_train, X_mol_train, y_train, char_to_idx, dna_encoder, gene_seq)
+    val_dataset = DNAMoleculeDataset(X_dna_test, X_mol_test, y_test, char_to_idx, dna_encoder, gene_seq)
 
     # Create data loaders
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
