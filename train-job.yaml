@@ -3,23 +3,41 @@ kind: Job
 metadata:
   name: jeg076-dnainteraction
 spec:
-  containers:
-  - name: trainer
-    image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
-    command: ["python", "train.py"]
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-        memory: 8G
-        cpu: 4
-      requests:
-        nvidia.com/gpu: "1"
-        memory: 8G
-        cpu: 4
-    volumeMounts:
-    - mountPath: /dna-interaction-model
-    name: model-data
-    volumes:
-      - name: model-data
-        persistentVolumeClaim:
-          claimName: model-data
+  template:
+    spec:
+      containers:
+      - name: jeg076-dnainteraction
+        image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
+        command: ["bash", "-c"]
+        args: ["cp data/genes.csv ../tmp && python train.py"]
+        volumeMounts:
+        - mountPath: /workspace/data
+          name: jeg076-pvc
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            memory: 8G
+            cpu: 2
+          requests:
+            nvidia.com/gpu: 1
+            memory: 8G
+            cpu: 2
+      restartPolicy: Never
+      volumes:
+        - name: jeg076-pvc
+          persistentVolumeClaim:
+            claimName: jeg076-pvc
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/cuda.runtime.major
+                operator: In
+                values:
+                - "12"
+              - key: nvidia.com/cuda.runtime.minor
+                operator: In
+                values:
+                - "2"
+  backoffLimit: 4
