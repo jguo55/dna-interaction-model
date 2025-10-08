@@ -1,4 +1,5 @@
-data/
+data_general/
+data_chemgeneralization/
 smiles_vocab.pkl
 __pycache__/
 raw_data/

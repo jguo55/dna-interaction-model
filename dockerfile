@@ -4,5 +4,6 @@ RUN pip install --no-cache-dir numpy scikit-learn h5py
 
 WORKDIR /workspace
 COPY train.py /workspace/
+COPY DNAMoleculeModel.py /workspace/
 
 CMD ["python", "train.py"]

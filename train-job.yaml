@@ -1,17 +1,17 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jeg076-dnainteraction
+  name: jg-dnagene
 spec:
   template:
     spec:
       containers:
-      - name: jeg076-dnainteraction
+      - name: jg-dnagene
         image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
         command: ["bash", "-c"]
-        args: ["cp data/genes.csv ../tmp && python train.py"]
+        args: ["cp data_general/genes.hdf5 ../tmp && python train.py"]
         volumeMounts:
-        - mountPath: /workspace/data
+        - mountPath: /workspace/data_general
           name: jeg076-pvc
         resources:
           limits:

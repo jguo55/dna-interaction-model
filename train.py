@@ -146,7 +146,7 @@ if __name__ == "__main__":
         smiles_set = set()
         for i in range(1, 15):
             print(f"Processing file {i}/14")
-            with open(basepath + f'data/train/train_{i}.csv', 'r') as c:
+            with open(basepath + f'data_general/train/train_{i}.csv', 'r') as c:
                 reader = csv.DictReader(c)
                 for row in reader:
                     smiles_set.add(row['SMILES'])
@@ -160,12 +160,12 @@ if __name__ == "__main__":
         
     char_to_idx = mol_encoder.create_char_vocab(list(smiles_set))
 
-    dna_seqs, smiles, labels = get_data(basepath + "data/")
+    dna_seqs, smiles, labels = get_data(basepath + "data_general/")
     # Split data to val set 
     X_dna_train, X_dna_test, X_mol_train, X_mol_test, y_train, y_test = train_test_split(
         dna_seqs, smiles, labels, test_size=0.2, random_state=67)
     
-    gene_seq = load_gene_sequences("../tmp/genes.h5py")
+    gene_seq = load_gene_sequences("../tmp/genes.hdf5")
     
     dna_encoder = DNAEncoder()
     train_dataset = DNAMoleculeDataset(X_dna_train, X_mol_train, y_train, char_to_idx, dna_encoder, gene_seq)
@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     # Train model
     print("\nStarting training...")
-    trained_model = train_model(model, train_loader, val_loader, num_epochs=10, use_patience=False)
+    trained_model = train_model(model, train_loader, val_loader, num_epochs=1000, use_patience=True)
 
     # Test model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
