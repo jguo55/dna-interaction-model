@@ -148,7 +148,6 @@ class DNAMoleculeInteractionModel(nn.Module):
             nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
-            nn.Sigmoid()
         )
 
     def forward(self, dna_seq, mol_seq):
@@ -190,7 +189,7 @@ class DNAMoleculeDataset(Dataset):
         if self.gene_seq: 
             dna_sequence = self.gene_seq[self.dna_ids[idx]]
         else:
-            with h5py.File("data/genes.hdf5", 'r') as f:
+            with h5py.File("data_general/genes.hdf5", 'r') as f:
                 dna_sequence = f[self.dna_ids[idx]][()]
         dna_encoded = self.dna_encoder.encode_sequence(dna_sequence)
         mol_encoded = torch.tensor([self.char_to_idx.get(char, self.char_to_idx['<UNK>'])

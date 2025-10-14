@@ -16,14 +16,12 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
     model = model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-5)
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
 
     best_val_auc = 0
 
     epochs_no_improvement = 0
-
-    start_time = time.time()
 
     for epoch in range(num_epochs):
 
@@ -81,17 +79,17 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
             best_val_auc = val_auc
             epochs_no_improvement = 0
             torch.save(model.state_dict(), 'best_dna_molecule_model.pt')
+            torch.save(model.state_dict(), 'data_general/best_dna_molecule_model.pt')
         else:
             epochs_no_improvement += 1
+            print(f"Epochs with no improvement: {epochs_no_improvement}")
 
-        print(f'Epoch {epoch}: Train Loss={train_loss/len(train_loader):.4f}, '
+        print(f'Epoch {epoch+1}: Train Loss={train_loss/len(train_loader):.4f}, '
             f'Train AUC={train_auc:.4f}, Val AUC={val_auc:.4f}, Time = {time.time()-epoch_time}')
         
         if epochs_no_improvement >= patience and use_patience:
             print(f"Early stopping at epoch {epoch}")
             break
-
-    print(f"Total training time: {time.time()-start_time}")
     return model
 
 def get_data(filepath):
@@ -184,7 +182,7 @@ if __name__ == "__main__":
 
     # Train model
     print("\nStarting training...")
-    trained_model = train_model(model, train_loader, val_loader, num_epochs=1000, use_patience=True)
+    trained_model = train_model(model, train_loader, val_loader, num_epochs=1000, use_patience=False)
 
     # Test model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
