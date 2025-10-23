@@ -1,43 +1,38 @@
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: jg-dnagene
-spec:
-  template:
-    spec:
-      containers:
-      - name: jg-dnagene
-        image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
-        command: ["bash", "-c"]
-        args: ["cp data_general/genes.hdf5 ../tmp && python train.py"]
-        volumeMounts:
-        - mountPath: /workspace/data_general
-          name: jeg076-pvc
-        resources:
-          limits:
-            nvidia.com/gpu: 1
-            memory: 8G
-            cpu: 2
-          requests:
-            nvidia.com/gpu: 1
-            memory: 8G
-            cpu: 2
-      restartPolicy: Never
-      volumes:
-        - name: jeg076-pvc
-          persistentVolumeClaim:
-            claimName: jeg076-pvc
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: nvidia.com/cuda.runtime.major
-                operator: In
-                values:
-                - "12"
-              - key: nvidia.com/cuda.runtime.minor
-                operator: In
-                values:
-                - "2"
-  backoffLimit: 4
+  apiVersion: batch/v1
+  kind: Job
+  metadata:
+    name: jg-dnagene
+  spec:
+    template:
+      spec:
+        containers:
+        - name: jg-dnagene
+          image: gitlab-registry.nrp-nautilus.io/jeg076/dna-interaction:latest
+          command: ["bash", "-c"]
+          args: ["cp data_general/genes.hdf5 ../tmp && python train_foundation.py"]
+          volumeMounts:
+          - mountPath: /workspace/data_general
+            name: jeg076-pvc
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: 32G
+              cpu: 2
+            requests:
+              nvidia.com/gpu: 1
+              memory: 32G
+              cpu: 2
+        restartPolicy: Never
+        volumes:
+          - name: jeg076-pvc
+            persistentVolumeClaim:
+              claimName: jeg076-pvc
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+              - matchExpressions:
+                - key: nvidia.com/cuda.runtime.major
+                  operator: In
+                  values: ["12"]
+    backoffLimit: 2

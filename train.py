@@ -69,7 +69,7 @@ def train_model(model, train_loader, val_loader, num_epochs: int = 50, lr: float
                 val_preds.extend(predictions.cpu().numpy())
                 val_labels.extend(labels.cpu().numpy())
 
-        # Calculate metrics
+        # Calculate mecs
         train_auc = roc_auc_score(train_labels, train_preds)
         val_auc = roc_auc_score(val_labels, val_preds)
 
