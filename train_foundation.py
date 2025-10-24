@@ -187,23 +187,22 @@ if __name__ == "__main__":
     val_dataset = DNAMoleculeDatasetFoundation(X_dna_test, X_mol_test, y_test, gene_seq)
 
     # Create data loaders with custom collate function
-    # Use smaller batch size for foundation models due to memory constraints
-    batch_size = 4
+    batch_size = 128
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
-                             collate_fn=collate_fn_foundation, num_workers=0)
+                             collate_fn=collate_fn_foundation, num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False,
-                           collate_fn=collate_fn_foundation, num_workers=0)
+                           collate_fn=collate_fn_foundation, num_workers=4, pin_memory=True)
 
 
     print(f"\n[5/6] Initializing model...")
     print("Loading DNA-BERT2 and ChemBERTa models...")
 
     # Initialize model
-    # Set freeze_backbones=True initially for faster training, then fine-tune later
+    # Freeze foundation model backbones for faster training (train only task-specific layers)
     model = DNAMoleculeInteractionModelFoundation(
         dna_model_name="zhihan1996/DNABERT-2-117M",
         mol_model_name="DeepChem/ChemBERTa-77M-MLM",
-        freeze_backbones=False,  # Set to True to freeze foundation models initially
+        freeze_backbones=True,  # Freeze foundation models - only train projection/attention/classifier
         num_attention_heads=8
     )
 

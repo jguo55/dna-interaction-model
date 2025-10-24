@@ -15,4 +15,4 @@ This project is intended to predict molecule and DNA interactions. It uses the .
 
 ## Architecture
 
-Data is in the data_general folder, ignore the raw_data folder (it's where the dataset is created from). Train_foundation.py trains the model, it uses a patched bert built from this directory. This project is intended to be built into a docker container, then trained using kubernetes and train-job.yaml.
+Data is in the data_general folder, ignore the raw_data folder (it's where the dataset is created from). Train_foundation.py trains the model, which disables the triton module because of the issues associated with it. This project is intended to be built into a docker container, then trained using kubernetes and train-job.yaml.
